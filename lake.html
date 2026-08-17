@@ -88,6 +88,24 @@
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="shared.js"></script>
   <script src="lake.js"></script>
+  <script>
+    function sendHeight() {
+      // Get the actual rendered height of the body content
+      const height = document.body.scrollHeight;
+      // Send message to the host window
+      window.parent.postMessage({ frameHeight: height }, '*');
+    }
+
+    // Send initial height on load
+    window.addEventListener('load', sendHeight);
+
+    // Send updated height if window resizes (mobile/desktop adaptivity)
+    window.addEventListener('resize', sendHeight);
+
+    // Watch for dynamic height changes (DOM modifications, dropdown toggles, user selections)
+    const observer = new ResizeObserver(() => sendHeight());
+    observer.observe(document.body);
+  </script>
 </body>
 
 </html>
