@@ -4,9 +4,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MCM Live Meteogram — McMurdo LTER Weather</title>
+  <title>MCM Live Lake Data — McMurdo LTER</title>
   <meta name="description"
-    content="Interactive time-series meteorological visualizations for McMurdo LTER weather monitoring stations in Antarctica. Displays temperature, humidity, pressure, solar radiation, and wind." />
+    content="Interactive time-series lake buoy data for McMurdo LTER lake monitoring stations in Antarctica. Displays stage, temperature, oxygen saturation, PAR, and more." />
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -20,23 +20,23 @@
       <div class="control-group" id="page-nav-control">
         <label>Data type</label>
         <nav id="page-nav" aria-label="Data type">
-          <a href="index.html" class="nav-link active" aria-current="page">Met</a>
-          <a href="lake.html" class="nav-link">Lake</a>
+          <a href="index.html" class="nav-link">Met</a>
+          <a href="lake.html" class="nav-link active" aria-current="page">Lake</a>
         </nav>
       </div>
 
-      <!-- Station selector -->
+      <!-- Site selector -->
       <div class="control-group" id="station-control">
-        <label>Stations</label>
+        <label>Lake sites</label>
         <div id="station-selector-wrapper">
           <button id="station-dropdown-btn" aria-haspopup="listbox" aria-expanded="false">
-            <span id="station-dropdown-label">Select stations…</span>
+            <span id="station-dropdown-label">Select sites…</span>
             <svg class="chevron" viewBox="0 0 10 6" width="10" height="6">
               <path d="M0 0l5 6 5-6z" fill="currentColor" />
             </svg>
           </button>
           <ul id="station-dropdown" role="listbox" aria-multiselectable="true" hidden>
-            <!-- populated by met.js -->
+            <!-- populated by lake.js -->
           </ul>
         </div>
       </div>
@@ -63,7 +63,7 @@
         </div>
       </div>
 
-      <!-- Panel toggles (populated by met.js) -->
+      <!-- Panel toggles (populated by lake.js) -->
       <div class="control-group" id="panel-toggle-control">
         <label>Panels</label>
         <div class="toggle-group"></div>
@@ -72,12 +72,12 @@
     </div>
 
     <!-- Legend -->
-    <div id="legend" aria-label="Station legend"></div>
+    <div id="legend" aria-label="Site legend"></div>
 
     <!-- Status / error messages -->
     <div id="status-bar" aria-live="polite"></div>
 
-    <!-- Chart panels (populated by met.js) -->
+    <!-- Chart panels (populated by lake.js) -->
     <div id="charts"></div>
 
     <!-- Tooltip -->
@@ -87,7 +87,7 @@
 
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <script src="shared.js"></script>
-  <script src="met.js"></script>
+  <script src="lake.js"></script>
 </body>
 
 </html>
