@@ -85,5 +85,6 @@ document.addEventListener('DOMContentLoaded', () => {
     fieldForPanelFn: fieldForLakePanel,
     defaultSite: 'elbbb',
     defaultVisible: LAKE_DEFAULT_VISIBLE,
+    dataType: 'Lake',
   });
 });

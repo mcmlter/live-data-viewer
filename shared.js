@@ -8,6 +8,11 @@
 
 // ─── Constants ────────────────────────────────────────────────
 const GAP_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours → line break
+
+// ─── Shared crosshair state ───────────────────────────────────
+// Panels register themselves here; any panel's mousemove broadcasts to all.
+const crosshairRegistry = new Map(); // panelId → { xScale, svgRoot, panelEl, datasets, panel, appCtx, extraFn }
+let _crosshairTime = null; // current hovered Date (shared across all panels)
 // 16 distinct accessible colors — ordered for maximum hue separation.
 // First 4 (lakes): Teal, Red, Green, Purple.
 const PALETTE = [
@@ -319,15 +324,28 @@ function degToCardinal(deg) {
   return dirs[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
 }
 
-function attachCrosshair(svg, panelId, xScale, yScale, innerW, innerH, datasets, panel, appCtx, extraFn) {
-  const { state, sites, siteLabel, fieldForPanel } = appCtx;
-  const tooltip = document.getElementById('tooltip');
-  const overlay = svg.select('.chart-root').select('.zoom-overlay');
-
-  overlay.on('mousemove', function (event) {
-    const [mx] = d3.pointer(event);
-    const t = xScale.invert(mx);
+/** Render the vertical crosshair line and per-panel tooltip for a given time t. */
+function _renderCrosshair(t) {
+  for (const [pid, reg] of crosshairRegistry.entries()) {
+    const { xScale, innerW, innerH, svgRoot, panelEl, datasets, panel, appCtx, extraFn } = reg;
+    const { state, sites, siteLabel, fieldForPanel } = appCtx;
     const [t0, t1] = effectiveTimeDomain(state);
+    if (t < t0 || t > t1) { _hideCrosshair(pid); continue; }
+
+    const mx = xScale(t);
+    if (mx < 0 || mx > innerW) { _hideCrosshair(pid); continue; }
+
+    // Draw/move the vertical crosshair line
+    let vline = svgRoot.select('.crosshair-line');
+    if (vline.empty()) {
+      vline = svgRoot.append('line')
+        .attr('class', 'crosshair-line')
+        .attr('y1', 0)
+        .attr('pointer-events', 'none');
+    }
+    vline.attr('x1', mx).attr('x2', mx).attr('y2', innerH).attr('display', null);
+
+    // Build per-panel inline tooltip
     const lines = [];
     for (const { code, rows } of datasets) {
       const vis = rows.filter(r => r.time >= t0 && r.time <= t1 && fieldForPanel(panel, r) !== null);
@@ -337,22 +355,66 @@ function attachCrosshair(svg, panelId, xScale, yScale, innerW, innerH, datasets,
       if (!r) continue;
       lines.push({ code, val: fieldForPanel(panel, r), time: r.time, row: r });
     }
-    if (!lines.length) return;
-    const timeStr = d3.utcFormat('%Y-%m-%d %H:%M UTC+13')(lines[0].time);
+
+    // Per-panel tooltip positioned relative to the panel element
+    let tip = panelEl.querySelector('.panel-crosshair-tip');
+    if (!tip) {
+      tip = document.createElement('div');
+      tip.className = 'panel-crosshair-tip';
+      panelEl.querySelector('.panel-svg-container').appendChild(tip);
+    }
+
+    if (!lines.length) { tip.style.display = 'none'; continue; }
+
+    const timeStr = d3.utcFormat('%Y-%m-%d %H:%M UTC')(lines[0].time);
     const rowsHtml = lines.map(l =>
       `<div class="tooltip-row">
          <span class="tooltip-label" style="color:${siteColor(l.code, sites)}">${siteLabel(l.code)}</span>
-         <span class="tooltip-value">${panel.fmt(l.val)} ${panel.unit}${extraFn ? extraFn(l.row) : ''}</span>
+         <span class="tooltip-value">${panel.fmt(l.val)} ${panel.unit}${extraFn ? extraFn(l.row) : ''}</span>
        </div>`
     ).join('');
-    tooltip.innerHTML = `<div class="tooltip-time">${timeStr}</div>${rowsHtml}`;
-    tooltip.classList.add('visible');
-    tooltip.setAttribute('aria-hidden', 'false');
-    tooltip.style.left = Math.min(event.clientX + 14, window.innerWidth - 230) + 'px';
-    tooltip.style.top = Math.min(event.clientY - 10, window.innerHeight - 120) + 'px';
-  }).on('mouseleave', () => {
-    tooltip.classList.remove('visible');
-    tooltip.setAttribute('aria-hidden', 'true');
+    tip.innerHTML = `<div class="tooltip-time">${timeStr}</div>${rowsHtml}`;
+
+    // Position tip: prefer right of line, flip left if near edge
+    const containerRect = panelEl.querySelector('.panel-svg-container').getBoundingClientRect();
+    const lineX = mx + (/* MARGIN.left */ 58); // account for chart margin
+    const tipW = 220;
+    const leftPos = lineX + 8;
+    const rightEdge = containerRect.width;
+    tip.style.display = 'block';
+    tip.style.left = (leftPos + tipW > rightEdge ? lineX - tipW - 8 : leftPos) + 'px';
+    tip.style.top = '4px';
+  }
+}
+
+function _hideCrosshair(pid) {
+  const reg = crosshairRegistry.get(pid);
+  if (!reg) return;
+  reg.svgRoot.select('.crosshair-line').attr('display', 'none');
+  const tip = reg.panelEl.querySelector('.panel-crosshair-tip');
+  if (tip) tip.style.display = 'none';
+}
+
+function _hideAllCrosshairs() {
+  for (const pid of crosshairRegistry.keys()) _hideCrosshair(pid);
+}
+
+function attachCrosshair(svg, panelId, xScale, yScale, innerW, innerH, datasets, panel, appCtx, extraFn) {
+  const panelEl = document.getElementById(`panel-${panelId}`);
+  const svgRoot = svg.select('.chart-root');
+
+  // Register this panel so other panels' mousemove can drive it too
+  crosshairRegistry.set(panelId, { xScale, innerW, innerH, svgRoot, panelEl, datasets, panel, appCtx, extraFn });
+
+  const overlay = svgRoot.select('.zoom-overlay');
+
+  overlay.on('mousemove.crosshair', function (event) {
+    const [mx] = d3.pointer(event);
+    _crosshairTime = xScale.invert(mx);
+    _renderCrosshair(_crosshairTime);
+  }).on('mouseleave.crosshair', () => {
+    _crosshairTime = null;
+    _hideAllCrosshairs();
   });
 }
 
@@ -511,6 +573,72 @@ function initPanelToggles(appCtx) {
   });
 }
 
+// ─── CSV Download ─────────────────────────────────────────────
+/**
+ * Build and trigger a CSV download of the currently visible panels
+ * in wide format, one row per (timestamp, station), original resolution.
+ * Filename: MCM_<dataType>_<startDate>_<endDate>.csv
+ */
+function downloadCsv(appCtx) {
+  const { state, panels, siteLabel, dataType } = appCtx;
+  const [t0, t1] = effectiveTimeDomain(state);
+
+  // Only visible panels
+  const visiblePanels = panels.filter(p => state.panelVisible[p.id]);
+  if (!visiblePanels.length) { alert('No panels are currently visible.'); return; }
+  if (!state.activeStations.length) { alert('No stations selected.'); return; }
+
+  // Collect all unique timestamps from all active stations
+  const rowsByStation = new Map();
+  for (const code of state.activeStations) {
+    const rows = state.cache.get(code) || [];
+    rowsByStation.set(code, rows.filter(r => r.time >= t0 && r.time <= t1));
+  }
+
+  // Wide format: one row per (timestamp, station)
+  // Build unified set of timestamps per station
+  const csvRows = [];
+  for (const code of state.activeStations) {
+    const rows = rowsByStation.get(code);
+    for (const r of rows) {
+      const obj = {
+        timestamp_utc: d3.utcFormat('%Y-%m-%dT%H:%M:%SZ')(r.time),
+        station_name: siteLabel(code),
+      };
+      for (const p of visiblePanels) {
+        const val = appCtx.fieldForPanel(p, r);
+        obj[`${p.label} (${p.unit})`] = val !== null && val !== undefined ? val : '';
+      }
+      csvRows.push(obj);
+    }
+  }
+
+  if (!csvRows.length) { alert('No data in the selected time range.'); return; }
+
+  // Sort by timestamp then station
+  csvRows.sort((a, b) => a.timestamp_utc.localeCompare(b.timestamp_utc) || a.station_name.localeCompare(b.station_name));
+
+  // Build CSV string
+  const cols = Object.keys(csvRows[0]);
+  const escape = v => { const s = String(v); return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s; };
+  const lines = [cols.map(escape).join(',')];
+  for (const row of csvRows) lines.push(cols.map(c => escape(row[c])).join(','));
+  const csv = lines.join('\r\n');
+
+  // Filename: MCM_<dataType>_<start>_<end>.csv
+  const fmt = d => d3.utcFormat('%Y%m%d')(d);
+  const filename = `MCM_${dataType}_${fmt(t0)}_${fmt(t1)}.csv`;
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
 // ─── App initialiser (entry point for met.js / lake.js) ───────
 /**
  * config = {
@@ -522,6 +650,7 @@ function initPanelToggles(appCtx) {
  *   fieldForPanelFn: (panel, row) => number|null
  *   defaultSite:     string           — initially selected site
  *   defaultVisible:  string[]         — panel ids visible on load
+ *   dataType:        string           — 'Met' or 'Lake' (for CSV filename)
  *   drawSpecialPanel?: (panel, datasets, appCtx) => boolean
  *                    — return true if handled (e.g. wind panel)
  * }
@@ -530,6 +659,7 @@ function initApp(config) {
   const {
     sites, siteNames, panels, dataUrlFn, parseRowFn,
     fieldForPanelFn, defaultSite, defaultVisible, drawSpecialPanel,
+    dataType = 'Data',
   } = config;
 
   const state = createState(panels, defaultVisible);
@@ -543,11 +673,15 @@ function initApp(config) {
     panels,
     dataUrlFn,
     parseRowFn,
+    dataType,
     fieldForPanel: fieldForPanelFn,
     redrawPanels: null, // set below after closure
   };
 
   async function redrawPanels() {
+    // Clear stale crosshair registrations before redrawing panels
+    crosshairRegistry.clear();
+
     if (!state.activeStations.length) {
       for (const p of panels) {
         const panelEl = document.getElementById(`panel-${p.id}`);
@@ -601,11 +735,18 @@ function initApp(config) {
   initTimeControls(appCtx);
   initPanelToggles(appCtx);
 
+  // Download CSV button
+  const dlBtn = document.getElementById('download-csv-btn');
+  if (dlBtn) dlBtn.addEventListener('click', () => downloadCsv(appCtx));
+
   // Default site
   state.activeStations = [defaultSite];
   const li = document.querySelector(`[data-code="${defaultSite}"]`);
   if (li) { li.setAttribute('aria-selected', 'true'); li.querySelector('.check').textContent = '✓'; }
   updateDropdownLabel(appCtx);
+
+  // Clear crosshair registry on each full redraw cycle
+  crosshairRegistry.clear();
   redrawPanels();
 
   // Resize handler
@@ -615,6 +756,7 @@ function initApp(config) {
     resizeTimer = setTimeout(() => {
       document.querySelectorAll('.panel-svg-container svg').forEach(s => s.remove());
       zoomBehaviors.clear();
+      crosshairRegistry.clear();
       redrawPanels();
     }, 200);
   });

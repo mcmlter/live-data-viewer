@@ -231,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fieldForPanelFn: fieldForMetPanel,
     defaultSite:     'viam',
     defaultVisible:  MET_DEFAULT_VISIBLE,
+    dataType:        'Met',
     drawSpecialPanel: (panel, datasets, appCtx) => {
       if (!panel.isWind) return false;
       drawWindPanel(datasets, appCtx);

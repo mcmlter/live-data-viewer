@@ -483,25 +483,60 @@ body {
   cursor: crosshair;
 }
 
-/* --- Tooltip ----------------------------------------------- */
-#tooltip {
-  position: fixed;
+/* --- Download CSV button ------------------------------------ */
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 11px;
+  font-size: 12px;
+  font-family: var(--font);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.download-btn:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.download-btn:active {
+  background: #dbeafe;
+}
+
+/* --- Crosshair SVG line ------------------------------------ */
+.crosshair-line {
+  stroke: var(--text-muted);
+  stroke-width: 1px;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+
+/* --- Per-panel inline tooltip ------------------------------ */
+.panel-crosshair-tip {
+  position: absolute;
+  top: 4px;
   pointer-events: none;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-md);
-  padding: 8px 12px;
+  padding: 7px 11px;
   font-size: 12px;
   line-height: 1.6;
-  z-index: 1000;
-  max-width: 280px;
-  opacity: 0;
-  transition: opacity 0.1s;
+  z-index: 200;
+  max-width: 240px;
+  display: none;
 }
 
-#tooltip.visible {
-  opacity: 1;
+/* panel-svg-container must be relative for tip positioning */
+.panel-svg-container {
+  position: relative;
 }
 
 .tooltip-time {
@@ -525,6 +560,11 @@ body {
   font-family: var(--mono);
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* Legacy floating tooltip — kept in DOM for accessibility, but hidden */
+#tooltip {
+  display: none;
 }
 
 /* --- Responsive -------------------------------------------- */
