@@ -616,7 +616,7 @@ function downloadCsv(appCtx) {
   if (!csvRows.length) { alert('No data in the selected time range.'); return; }
 
   // Sort by timestamp then station
-  csvRows.sort((a, b) => a.timestamp_utc.localeCompare(b.timestamp_utc) || a.station_name.localeCompare(b.station_name));
+  csvRows.sort((a, b) => a['timestamp_utc+13'].localeCompare(b['timestamp_utc+13']) || a.station_name.localeCompare(b.station_name));
 
   // Build CSV string
   const cols = Object.keys(csvRows[0]);
