@@ -573,7 +573,18 @@ function initPanelToggles(appCtx) {
   });
 }
 
-// ─── CSV Download ─────────────────────────────────────────────
+function toSnakeCaseHeader(label, unit) {
+  let s = `${label || ''}_${unit || ''}`.toLowerCase();
+  return s.replace(/°c/g, 'c')
+          .replace(/°/g, 'deg')
+          .replace(/²/g, '2')
+          .replace(/µ/g, 'u')
+          .replace(/₂/g, '2')
+          .replace(/%/g, 'pct')
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+}
+
 /**
  * Build and trigger a CSV download of the currently visible panels
  * in wide format, one row per (timestamp, station), original resolution.
@@ -602,12 +613,23 @@ function downloadCsv(appCtx) {
     const rows = rowsByStation.get(code);
     for (const r of rows) {
       const obj = {
-        'timestamp_utc+13': d3.utcFormat('%Y-%m-%dT%H:%M:%S')(r.time) + '+13:00',
+        timestamp_utc13: d3.utcFormat('%Y-%m-%dT%H:%M:%S')(r.time) + '+13:00',
         station_name: siteLabel(code),
       };
       for (const p of visiblePanels) {
-        const val = appCtx.fieldForPanel(p, r);
-        obj[`${p.label} (${p.unit})`] = val !== null && val !== undefined ? val : '';
+        if (typeof p.csvFields === 'function') {
+          for (const f of p.csvFields(r, appCtx)) {
+            obj[f.header] = f.value !== null && f.value !== undefined ? f.value : '';
+          }
+        } else if (p.isWind) {
+          const val = appCtx.fieldForPanel(p, r);
+          obj['wind_spd_kt'] = val !== null && val !== undefined ? val : '';
+          obj['wind_dir_deg'] = r.wind_dir !== null && r.wind_dir !== undefined ? r.wind_dir : '';
+        } else {
+          const colName = p.csvCol || toSnakeCaseHeader(p.label, p.unit);
+          const val = appCtx.fieldForPanel(p, r);
+          obj[colName] = val !== null && val !== undefined ? val : '';
+        }
       }
       csvRows.push(obj);
     }
@@ -616,7 +638,7 @@ function downloadCsv(appCtx) {
   if (!csvRows.length) { alert('No data in the selected time range.'); return; }
 
   // Sort by timestamp then station
-  csvRows.sort((a, b) => a['timestamp_utc+13'].localeCompare(b['timestamp_utc+13']) || a.station_name.localeCompare(b.station_name));
+  csvRows.sort((a, b) => a.timestamp_utc13.localeCompare(b.timestamp_utc13) || a.station_name.localeCompare(b.station_name));
 
   // Build CSV string
   const cols = Object.keys(csvRows[0]);

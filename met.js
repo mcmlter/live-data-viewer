@@ -33,12 +33,23 @@ const MET_DEFAULT_VISIBLE = ['temperature', 'humidity', 'pressure', 'solar', 'wi
 // 'battery' is omitted → starts hidden
 
 const MET_PANELS = [
-  { id: 'temperature', field: 'air_temp_3m',   label: 'Temperature',           unit: '°C',   fmt: v => v.toFixed(1) },
-  { id: 'humidity',    field: 'rel_hum_3m',    label: 'Relative Humidity',     unit: '%',    fmt: v => v.toFixed(1) },
-  { id: 'pressure',    field: 'barom_pres',    label: 'Barometric Pressure',   unit: 'hPa',  fmt: v => v.toFixed(1) },
-  { id: 'solar',       field: 'sw_rad_in',     label: 'Solar Radiation',       unit: 'W/m²', fmt: v => v.toFixed(2) },
-  { id: 'wind',        field: 'wind_spd_avg',  label: 'Wind Speed & Direction',unit: 'kt',   fmt: v => v.toFixed(1), isWind: true },
-  { id: 'battery',     field: 'battv_min',     label: 'Battery Voltage',       unit: 'V',    fmt: v => v.toFixed(2) },
+  { id: 'temperature', field: 'air_temp_3m',   label: 'Temperature',           unit: '°C',   fmt: v => v.toFixed(1), csvCol: 'air_temp_c' },
+  { id: 'humidity',    field: 'rel_hum_3m',    label: 'Relative Humidity',     unit: '%',    fmt: v => v.toFixed(1), csvCol: 'rel_hum_pct' },
+  { id: 'pressure',    field: 'barom_pres',    label: 'Barometric Pressure',   unit: 'hPa',  fmt: v => v.toFixed(1), csvCol: 'barom_pres_hpa' },
+  { id: 'solar',       field: 'sw_rad_in',     label: 'Solar Radiation',       unit: 'W/m²', fmt: v => v.toFixed(2), csvCol: 'solar_rad_w_m2' },
+  {
+    id: 'wind',
+    field: 'wind_spd_avg',
+    label: 'Wind Speed & Direction',
+    unit: 'kt',
+    fmt: v => v.toFixed(1),
+    isWind: true,
+    csvFields: r => [
+      { header: 'wind_spd_kt', value: r.wind_spd },
+      { header: 'wind_dir_deg', value: r.wind_dir },
+    ],
+  },
+  { id: 'battery',     field: 'battv_min',     label: 'Battery Voltage',       unit: 'V',    fmt: v => v.toFixed(2), csvCol: 'battery_v' },
 ];
 
 function metDataUrl(code) {
