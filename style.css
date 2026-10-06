@@ -539,6 +539,10 @@ body {
   position: relative;
 }
 
+.panel-crosshair-tip .tooltip-time {
+  font-size: 10.5px;
+}
+
 .tooltip-time {
   font-weight: 600;
   color: var(--text-primary);

@@ -366,7 +366,7 @@ function _renderCrosshair(t) {
 
     if (!lines.length) { tip.style.display = 'none'; continue; }
 
-    const timeStr = d3.utcFormat('%Y-%m-%d %H:%M UTC')(lines[0].time);
+    const timeStr = d3.utcFormat('%Y-%m-%d %H:%M UTC+13')(lines[0].time);
     const rowsHtml = lines.map(l =>
       `<div class="tooltip-row">
          <span class="tooltip-label" style="color:${siteColor(l.code, sites)}">${siteLabel(l.code)}</span>
@@ -602,7 +602,7 @@ function downloadCsv(appCtx) {
     const rows = rowsByStation.get(code);
     for (const r of rows) {
       const obj = {
-        timestamp_utc: d3.utcFormat('%Y-%m-%dT%H:%M:%SZ')(r.time),
+        'timestamp_utc+13': d3.utcFormat('%Y-%m-%dT%H:%M:%S')(r.time) + '+13:00',
         station_name: siteLabel(code),
       };
       for (const p of visiblePanels) {
