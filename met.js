@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     dataUrlFn:       metDataUrl,
     parseRowFn:      parseMetRow,
     fieldForPanelFn: fieldForMetPanel,
-    defaultSite:     'viam',
+    defaultSite:     'ho2m',
     defaultVisible:  MET_DEFAULT_VISIBLE,
     dataType:        'Met',
     drawSpecialPanel: (panel, datasets, appCtx) => {
